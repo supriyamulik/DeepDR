@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepDR | AI Diagnostic Console</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fa-solid fa-microscope"></i> Deep<span style="font-weight: 300;">DR</span>
+        </div>
+        <div style="color: var(--secondary); font-size: 0.9rem; font-weight: 600;">
+            SYSTEM STATUS: <span style="color: #28a745;">ACTIVE</span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-image"></i> Image Analysis</div>
+                <div class="upload-zone" id="drop-zone">
+                    <img id="preview-img" src="" alt="Preview">
+                    <div id="upload-placeholder">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <div style="font-weight: 600;">Upload Patient Data</div>
+                        <div style="font-size: 0.8rem; color: var(--secondary);">JPG, PNG or TIFF</div>
+                    </div>
+                    <input type="file" id="file-input" hidden>
+                </div>
+                <button class="btn-primary" id="run-btn" disabled>RUN FULL ANALYSIS</button>
+            </div>
+
+            <div class="card" id="diagnosis-card" style="margin-top: 1.5rem; display: none;">
+                <div class="card-header"><i class="fa-solid fa-circle-info"></i> Diagnostic Summary</div>
+                <div class="diagnosis-box">
+                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); font-weight: 700;">Detection Result</div>
+                    <div id="diagnosis-val" style="font-size: 1.2rem; font-weight: 800; margin-top: 0.3rem;"></div>
+                </div>
+                
+                <div class="severity-track">
+                    <div class="severity-marker" id="marker" style="left: 0%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 700; color: var(--secondary);">
+                    <span>NORMAL</span>
+                    <span>PROLIFERATIVE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div class="results-area">
+            <div id="empty-state" style="text-align: center; padding: 10rem 2rem; background: white; border-radius: 12px; border: 1px solid var(--border);">
+                <i class="fa-solid fa-folder-open" style="font-size: 3rem; color: #f1f3f5; margin-bottom: 1.5rem;"></i>
+                <h3 style="color: #adb5bd;">No Data Analyzed</h3>
+                <p style="color: #ced4da;">Please initiate a scan from the control panel to view retinal feature maps.</p>
+            </div>
+
+            <div id="loader" class="loader">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;"></i>
+                <h3>Processing Multi-Model Stack</h3>
+                <p style="color: var(--secondary);">Initializing 6 U-Net Modules and 1 CNN...</p>
+            </div>
+
+            <div id="results-grid" style="display: none;">
+                <div style="margin-bottom: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> SEGMENTATION MAPS
+                </div>
+                <div class="mask-grid" id="mask-container">
+                    <!-- Masks injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const runBtn = document.getElementById('run-btn');
+        const previewImg = document.getElementById('preview-img');
+        const placeholder = document.getElementById('upload-placeholder');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    runBtn.disabled = false;
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        };
+
+        runBtn.onclick = async () => {
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('results-grid').style.display = 'none';
+            document.getElementById('diagnosis-card').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            runBtn.disabled = true;
+
+            try {
+                const res = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                // Update Diagnosis & Slider
+                document.getElementById('diagnosis-val').innerText = data.diagnosis;
+                const marker = document.getElementById('marker');
+                let percent = 0;
+                if (data.diagnosis.includes('Mild')) percent = 25;
+                else if (data.diagnosis.includes('Moderate')) percent = 50;
+                else if (data.diagnosis.includes('Severe')) percent = 75;
+                else if (data.diagnosis.includes('Proliferative')) percent = 100;
+                marker.style.left = `calc(${percent}% - 8px)`;
+
+                // Update Grid
+                const container = document.getElementById('mask-container');
+                container.innerHTML = '';
+                for (const [name, url] of Object.entries(data.masks)) {
+                    container.innerHTML += `
+                        <div class="mask-card">
+                            <img src="${url}">
+                            <div class="mask-title">${name} Map</div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('results-grid').style.display = 'block';
+                document.getElementById('diagnosis-card').style.display = 'block';
+                runBtn.disabled = false;
+            } catch (e) {
+                alert("Scan failed. Check console.");
+                document.getElementById('loader').style.display = 'none';
+                runBtn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

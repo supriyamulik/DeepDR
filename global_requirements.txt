@@ -1,0 +1,10 @@
+flask
+tensorflow>=2.12.0
+opencv-python
+numpy
+torch
+torchvision
+tqdm
+imageio
+scikit-learn
+matplotlib

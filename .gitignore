@@ -1,0 +1,39 @@
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and temp
+*.log
+*.tmp
+
+# Model and training artifacts (large)
+**/files/checkpoint.pth
+*.h5
+*.pth
+*.pt
+
+# Generated outputs/results
+**/results/
+**/test_results/
+**/upload/
+**/static/results/
+
+# Jupyter
+.ipynb_checkpoints/
