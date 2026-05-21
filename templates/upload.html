@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-5);">
+    <h1>Intake Patient & Scan</h1>
+    <div class="page-subtitle">Input case metadata and initialize high-resolution fundus image analysis.</div>
+</div>
+
+<!-- Processing Loader Overlay -->
+<div id="processing-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--color-paper-mute); z-index: 1000; align-items: center; justify-content: center; flex-direction: column; color: var(--color-ink); border: 1px solid var(--color-border);">
+    <i class="fa-solid fa-compact-disc fa-spin" style="font-size: 3rem; color: var(--color-accent); margin-bottom: var(--space-4);"></i>
+    <div style="font-family: var(--font-mono); font-weight: 600; margin-bottom: var(--space-2); letter-spacing: 0.05em; font-size: 1rem;">RUNNING NEURAL PIPELINE</div>
+    <div style="color: var(--color-ink-mute); font-size: 0.85rem; max-width: 400px; text-align: center; line-height: 1.6; font-family: var(--font-mono);">
+        [1/7] CNN CLASSIFIER INFERENCE<br>
+        [7/7] PARALLEL U-NET SEGMENTATIONS<br>
+        GENERATING MASK OVERLAYS
+    </div>
+</div>
+
+<div class="table-card" style="padding: var(--space-5); max-width: 800px; margin: 0 auto;">
+    <form id="upload-form" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-2);">
+            Patient Demographics
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); margin-bottom: var(--space-5);">
+            <div class="form-group" style="margin: 0;">
+                <label for="patient_id">Patient ID <span style="color: var(--color-critical);">*</span></label>
+                <input type="text" name="patient_id" id="patient_id" class="form-control" placeholder="P-2026-9812" style="font-family: var(--font-mono);" required>
+            </div>
+            
+            <div class="form-group" style="margin: 0;">
+                <label for="name">Full Name <span style="color: var(--color-critical);">*</span></label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Eleanor Vance" required>
+            </div>
+            
+            <div class="form-group" style="margin: 0;">
+                <label for="age">Age <span style="color: var(--color-critical);">*</span></label>
+                <input type="number" name="age" id="age" class="form-control" min="1" max="120" placeholder="54" required>
+            </div>
+            
+            <div class="form-group" style="margin: 0;">
+                <label for="gender">Gender <span style="color: var(--color-critical);">*</span></label>
+                <select name="gender" id="gender" class="form-control" required>
+                    <option value="" disabled selected>Select gender</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-2);">
+            Retinal Fundus Scan
+        </div>
+        
+        <div id="drop-zone" style="border: 2px dashed var(--color-border); background-color: var(--color-paper-mute); padding: var(--space-5); text-align: center; cursor: pointer; border-radius: var(--radius); transition: background-color 0.2s, border-color 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); position: relative;">
+            <i class="fa-solid fa-qrcode" id="drop-icon" style="font-size: 2.5rem; color: var(--color-ink-mute);"></i>
+            <div id="drop-instructions">
+                <div style="font-weight: 500; font-size: 0.95rem; margin-bottom: var(--space-1);">Place Fundus Photograph Inside Chamber</div>
+                <div style="color: var(--color-ink-mute); font-size: 0.85rem;">Drag & drop or click to browse local files (JPG, PNG)</div>
+            </div>
+            
+            <div id="preview-frame" style="display: none; border: 1px solid var(--color-border); background-color: #000; border-radius: var(--radius); padding: var(--space-1);">
+                <img id="image-preview" src="" alt="Preview" style="display: block; max-height: 280px; width: auto; max-width: 100%; object-fit: contain;">
+            </div>
+            
+            <input type="file" name="original_image" id="original_image" accept="image/*" style="display: none;" required>
+            
+            <button type="button" id="select-btn" class="btn btn-secondary" style="margin-top: var(--space-2);">
+                Select File
+            </button>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-5); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" id="submit-btn" class="btn btn-primary" disabled>
+                Process Diagnostics
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('original_image');
+    const previewFrame = document.getElementById('preview-frame');
+    const preview = document.getElementById('image-preview');
+    const instructions = document.getElementById('drop-instructions');
+    const dropIcon = document.getElementById('drop-icon');
+    const selectBtn = document.getElementById('select-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const uploadForm = document.getElementById('upload-form');
+    const loader = document.getElementById('processing-loader');
+
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== selectBtn) {
+            fileInput.click();
+        }
+    });
+    
+    selectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                previewFrame.style.display = 'block';
+                instructions.style.display = 'none';
+                dropIcon.style.display = 'none';
+                submitBtn.disabled = false;
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--color-accent)';
+            dropZone.style.backgroundColor = 'var(--color-paper)';
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--color-border)';
+            dropZone.style.backgroundColor = 'var(--color-paper-mute)';
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
+        }
+    });
+
+    uploadForm.addEventListener('submit', () => {
+        loader.style.display = 'flex';
+    });
+</script>
+{% endblock %}

@@ -72,7 +72,7 @@ def main():
             sys.path.pop(0)
             continue
             
-        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device, weights_only=False))
         model.eval()
         
         test_x = sorted(glob(os.path.join(module_path, "new_data", "test", "image", "*")))

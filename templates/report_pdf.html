@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Diagnostic Report - {{ scan.patient.patient_id }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2.5cm;
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                left: 50pt; width: 512pt; top: 772pt; height: 20pt;
+            }
+        }
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 11pt;
+            color: #000000;
+            line-height: 1.5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .hospital-name {
+            font-size: 14pt;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .report-title {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        hr {
+            border: 0;
+            border-top: 1px solid #000;
+            margin: 10px 0;
+        }
+        h2 {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .demo-table td {
+            padding: 3px 0;
+        }
+        .demo-label {
+            font-weight: bold;
+            width: 20%;
+        }
+        .demo-value {
+            width: 30%;
+        }
+        /* LaTeX style table */
+        .latex-table {
+            width: 80%;
+            margin: 0 auto;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+        .latex-table th, .latex-table td {
+            padding: 5px;
+            text-align: left;
+        }
+        .latex-table th {
+            border-bottom: 1px solid #000;
+            font-weight: bold;
+        }
+        .caption {
+            text-align: center;
+            font-size: 10pt;
+            font-style: italic;
+            margin-bottom: 5px;
+        }
+        .images-table {
+            width: 100%;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .images-table td {
+            width: 50%;
+            vertical-align: middle;
+            padding: 10px;
+        }
+        .img-container {
+            border: 1px solid #000;
+            padding: 2px;
+            display: inline-block;
+        }
+        img {
+            max-width: 230px;
+            max-height: 230px;
+        }
+        .diagnosis-box {
+            border: 1px solid #000;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #fcfcfc;
+        }
+        .diagnosis-title {
+            font-size: 14pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .notes-area {
+            min-height: 80px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            font-style: italic;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="hospital-name">DeepDR Tele-Ophthalmology System</div>
+        <hr>
+        <div class="report-title">Automated Retinal Diagnostic Report</div>
+        <div style="font-size: 10pt;">Date of Report: {{ scan.created_at|date:"Y-m-d H:i" }}</div>
+        <hr>
+    </div>
+
+    <h2>I. Patient Demographics</h2>
+    <table class="demo-table">
+        <tr>
+            <td class="demo-label">Patient ID:</td>
+            <td class="demo-value">{{ scan.patient.patient_id }}</td>
+            <td class="demo-label">Name:</td>
+            <td class="demo-value">{{ scan.patient.name }}</td>
+        </tr>
+        <tr>
+            <td class="demo-label">Age:</td>
+            <td class="demo-value">{{ scan.patient.age }} Years</td>
+            <td class="demo-label">Gender:</td>
+            <td class="demo-value">{{ scan.patient.get_gender_display }}</td>
+        </tr>
+    </table>
+
+    <h2>II. Clinical Findings</h2>
+    <div class="diagnosis-box">
+        <div class="diagnosis-title">
+            {% if scan.final_diagnosis %}{{ scan.final_diagnosis }}{% else %}{{ scan.ai_diagnosis }}{% endif %}
+        </div>
+        <p style="text-align: justify; margin: 0;">
+            <strong>Clinical Description:</strong> {{ description }}
+        </p>
+    </div>
+
+    <h2>III. Diagnostic Confidence (AI Model)</h2>
+    <div class="caption">Table 1: Deep Learning Model Probability Distribution Across DR Stages</div>
+    <table class="latex-table">
+        <tr>
+            <th>Disease Stage</th>
+            <th>Probability Score</th>
+        </tr>
+        <tr>
+            <td>No Diabetic Retinopathy</td>
+            <td>{{ scan.confidence_breakdown.probs.0|default:"N/A" }}%</td>
+        </tr>
+        <tr>
+            <td>Mild NPDR</td>
+            <td>{{ scan.confidence_breakdown.probs.1|default:"N/A" }}%</td>
+        </tr>
+        <tr>
+            <td>Moderate NPDR</td>
+            <td>{{ scan.confidence_breakdown.probs.2|default:"N/A" }}%</td>
+        </tr>
+        <tr>
+            <td>Severe NPDR</td>
+            <td>{{ scan.confidence_breakdown.probs.3|default:"N/A" }}%</td>
+        </tr>
+        <tr>
+            <td>Proliferative DR</td>
+            <td>{{ scan.confidence_breakdown.probs.4|default:"N/A" }}%</td>
+        </tr>
+    </table>
+
+    <h2>IV. Retinal Imagery & Segmentation</h2>
+    <table class="images-table">
+        <tr>
+            <td>
+                <div class="caption">Figure 1: Original Fundus Photograph</div>
+                <div class="img-container">
+                    <img src="{{ scan.original_image.url }}">
+                </div>
+            </td>
+            <td>
+                <div class="caption">Figure 2: AI Segmentation Map</div>
+                <div class="img-container">
+                    {% if scan.combined_overlay %}
+                        <img src="/media/{{ scan.combined_overlay.name|default:scan.combined_overlay }}">
+                    {% else %}
+                        <div style="height: 230px; width: 230px; display: table-cell; vertical-align: middle; border: 1px dashed #999;">No Map Available</div>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <h2>V. Physician Notes</h2>
+    <div class="notes-area">
+        {% if scan.doctor_notes %}
+            {{ scan.doctor_notes }}
+        {% else %}
+            No additional clinical notes were provided by the reviewing physician at the time of report generation.
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 30px;">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 60%;"></td>
+                <td style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">
+                    Reviewing Clinician Signature
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="footer_content" style="text-align: center; font-size: 9pt; border-top: 1px solid #ccc; padding-top: 5px;">
+        Page <pdf:pagenumber> of <pdf:pagecount> | DeepDR System Generated Report
+    </div>
+
+</body>
+</html>

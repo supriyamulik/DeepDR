@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--space-5);">
+    <div>
+        <h1>Clinical Intake & Overview</h1>
+        <div class="page-subtitle">Monitor screening volumes, patient queues, and sign off diagnostic reports.</div>
+    </div>
+    <a href="{% url 'upload_scan' %}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Run New Diagnostic
+    </a>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Scans Run</div>
+        <div class="stat-value">{{ total_scans }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Pending Review</div>
+        <div class="stat-value">{{ pending_review }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Referred to Care</div>
+        <div class="stat-value">{{ referred_cases }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Completed Scans</div>
+        <div class="stat-value">{{ completed_cases }}</div>
+    </div>
+</div>
+
+<!-- Scanned Reports Table -->
+<div class="table-card">
+    <div class="table-header-row">
+        <div class="table-title">Recent Scans & Diagnostic Reports</div>
+        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute);">
+            LOGGED_RECORDS: {{ total_scans }}
+        </div>
+    </div>
+    
+    {% if scans %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Name</th>
+                    <th>Age/Sex</th>
+                    <th>Scan Date</th>
+                    <th>AI Classification</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in scans %}
+                    <tr>
+                        <td style="font-family: var(--font-mono); font-weight: 500;">{{ scan.patient.patient_id }}</td>
+                        <td style="font-weight: 500;">{{ scan.patient.name }}</td>
+                        <td>{{ scan.patient.age }} / {{ scan.patient.get_gender_display|slice:":1" }}</td>
+                        <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--color-ink-mute);">{{ scan.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if scan.ai_diagnosis %}
+                                <span class="badge badge-stage">{{ scan.ai_diagnosis }}</span>
+                            {% else %}
+                                <span style="color: var(--color-ink-mute);">Processing...</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if scan.status == 'PENDING' %}
+                                <span class="badge badge-pending">Pending Review</span>
+                            {% elif scan.status == 'REFERRED' %}
+                                <span class="badge badge-referred">Referred</span>
+                            {% else %}
+                                <span class="badge badge-completed">Graded & Signed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: var(--space-2);">
+                                <a href="{% url 'scan_results' scan.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                    View
+                                </a>
+                                <a href="{% url 'generate_report_pdf' scan.id %}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="Download PDF Report">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: var(--space-6) var(--space-4);">
+            <div style="font-size: 2rem; color: var(--color-border-hover); margin-bottom: var(--space-3);">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-1);">No Patient Records Logged</div>
+            <div style="color: var(--color-ink-mute); margin-bottom: var(--space-4); max-width: 400px; margin-inline: auto;">
+                Start by adding patient demographics and uploading a retinal fundus photograph to trigger the 7-model AI diagnostics stack.
+            </div>
+            <a href="{% url 'upload_scan' %}" class="btn btn-primary">
+                Run First Scan
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

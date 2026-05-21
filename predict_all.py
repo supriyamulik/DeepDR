@@ -82,7 +82,7 @@ def main(image_path):
         
         checkpoint_path = os.path.join(module_path, "files", "checkpoint.pth")
         if os.path.exists(checkpoint_path):
-            seg_model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+            seg_model.load_state_dict(torch.load(checkpoint_path, map_location=device, weights_only=False))
             seg_model.eval()
             
             with torch.no_grad():

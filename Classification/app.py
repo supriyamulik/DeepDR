@@ -56,7 +56,7 @@ def load_seg_model(module_name):
     
     model = mod.build_unet()
     model = model.to(device)
-    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device, weights_only=False))
     model.eval()
     return model
 

@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepDR | Clinical Diagnostic Console</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i class="fa-solid fa-laptop-medical"></i> Deep<span>DR</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li class="nav-item {% if active_tab == 'dashboard' %}active{% endif %}">
+                        <a href="{% url 'dashboard' %}">
+                            <i class="fa-solid fa-chart-line"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item {% if active_tab == 'upload' %}active{% endif %}">
+                        <a href="{% url 'upload_scan' %}">
+                            <i class="fa-solid fa-circle-plus"></i> Run New Scan
+                        </a>
+                    </li>
+                    <li class="nav-item {% if active_tab == 'grading' %}active{% endif %}">
+                        <a href="{% url 'grading_queue' %}">
+                            <i class="fa-solid fa-user-doctor"></i> Doctor's Queue
+                        </a>
+                    </li>
+                    <li class="nav-item {% if active_tab == 'referrals' %}active{% endif %}">
+                        <a href="{% url 'referrals_queue' %}">
+                            <i class="fa-solid fa-hospital-user"></i> Referrals Queue
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="main-content">
+            <header class="topbar">
+                <div class="topbar-telemetry">
+                    // CLINICAL DIAGNOSTIC WORKSTATION
+                </div>
+            </header>
+
+            <main class="content-body">
+                <!-- Django Messages (Success/Error banners) -->
+                {% if messages %}
+                    <div class="messages-container">
+                        {% for message in messages %}
+                            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">
+                                {% if message.tags == 'success' %}
+                                    <i class="fa-solid fa-circle-check"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                {% endif %}
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

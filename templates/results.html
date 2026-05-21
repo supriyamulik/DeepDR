@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--space-5);">
+    <div>
+        <h1>Diagnostic Console</h1>
+        <div class="page-subtitle">
+            <span style="font-weight: 500; color: var(--color-ink);">Patient: {{ scan.patient.name }}</span> 
+            <span style="font-family: var(--font-mono); font-size: 0.85em;">({{ scan.patient.patient_id }})</span> | 
+            {{ scan.patient.age }}y | {{ scan.patient.get_gender_display|slice:":1" }}
+        </div>
+    </div>
+    <div style="display: flex; gap: var(--space-2);">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        <a href="{% url 'generate_report_pdf' scan.id %}" class="btn btn-primary" target="_blank">
+            <i class="fa-solid fa-file-pdf"></i> Generate PDF
+        </a>
+    </div>
+</div>
+
+<div class="results-workspace">
+    <!-- Left Column: Diagnostic Viewport -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+        
+        <div class="table-card">
+            <div class="table-header-row">
+                <div class="table-title">Multi-Model Segmentation Viewer</div>
+                <div style="display: flex; align-items: center; gap: var(--space-2);">
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute);">OPACITY:</span>
+                    <input type="range" id="opacity-slider" min="10" max="100" value="80" style="width: 80px;">
+                    <span id="opacity-val" style="font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; width: 35px; text-align: right;">80%</span>
+                </div>
+            </div>
+
+            <div style="padding: var(--space-4);">
+                <div class="viewer-container" id="viewer-container">
+                    <img src="{{ scan.original_image.url }}" class="viewer-base-image" alt="Original Retinal Photograph">
+                    
+                    <img src="/media/{{ scan.combined_overlay }}" class="viewer-overlay-layer" id="combined-overlay" alt="Combined Highlights">
+                    <img src="/media/{{ scan.mask_blood_vessel }}" class="viewer-overlay-layer" id="layer-vessels" alt="Blood Vessels">
+                    <img src="/media/{{ scan.mask_hemorrhage }}" class="viewer-overlay-layer" id="layer-hemorrhage" alt="Hemorrhages">
+                    <img src="/media/{{ scan.mask_hard_exudate }}" class="viewer-overlay-layer" id="layer-hard" alt="Hard Exudates">
+                    <img src="/media/{{ scan.mask_microaneurysm }}" class="viewer-overlay-layer" id="layer-micro" alt="Microaneurysms">
+                    <img src="/media/{{ scan.mask_optic_disc }}" class="viewer-overlay-layer" id="layer-optic" alt="Optic Disc">
+                    <img src="/media/{{ scan.mask_soft_exudate }}" class="viewer-overlay-layer" id="layer-soft" alt="Soft Exudates">
+                </div>
+                
+                <div class="toggles-panel">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-3);">
+                        <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute); letter-spacing: 0.05em;">SEGMENTATION_LAYERS</span>
+                        <a href="#" id="toggle-all" style="font-size: 0.8rem; font-weight: 500; color: var(--color-accent); text-decoration: none;">Show Combined Map</a>
+                    </div>
+                    
+                    <div class="toggles-grid">
+                        <label class="toggle-pill toggle-vessels" id="pill-vessels">
+                            <input type="checkbox" id="chk-vessels" data-layer="layer-vessels">
+                            <span class="legend-dot"></span><span>Blood Vessels</span>
+                        </label>
+                        <label class="toggle-pill toggle-micro active" id="pill-micro">
+                            <input type="checkbox" id="chk-micro" data-layer="layer-micro" checked>
+                            <span class="legend-dot"></span><span>Microaneurysms</span>
+                        </label>
+                        <label class="toggle-pill toggle-hemorrhage active" id="pill-hemorrhage">
+                            <input type="checkbox" id="chk-hemorrhage" data-layer="layer-hemorrhage" checked>
+                            <span class="legend-dot"></span><span>Hemorrhages</span>
+                        </label>
+                        <label class="toggle-pill toggle-hard active" id="pill-hard">
+                            <input type="checkbox" id="chk-hard" data-layer="layer-hard" checked>
+                            <span class="legend-dot"></span><span>Hard Exudates</span>
+                        </label>
+                        <label class="toggle-pill toggle-soft active" id="pill-soft">
+                            <input type="checkbox" id="chk-soft" data-layer="layer-soft" checked>
+                            <span class="legend-dot"></span><span>Soft Exudates</span>
+                        </label>
+                        <label class="toggle-pill toggle-optic" id="pill-optic">
+                            <input type="checkbox" id="chk-optic" data-layer="layer-optic">
+                            <span class="legend-dot"></span><span>Optic Disc</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header-row">
+                <div class="table-title">Explainable AI Heatmap (XAI)</div>
+            </div>
+            <div style="padding: var(--space-4);">
+                <div style="color: var(--color-ink-mute); font-size: 0.85rem; margin-bottom: var(--space-3);">
+                    Grad-CAM regions of interest overlay (Feature 2 integration pending).
+                </div>
+                <div style="height: 120px; background-color: var(--color-paper-mute); border: 1px dashed var(--color-border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center;">
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute); letter-spacing: 0.05em;">[INTEGRATION_ENDPOINT: GRAD_CAM_VIEWPORT]</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column: AI Severity & Actions -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+        
+        <div class="table-card">
+            <div class="table-header-row">
+                <div class="table-title">Classification Output</div>
+            </div>
+            <div style="padding: var(--space-4);">
+                <div style="padding: var(--space-3); background-color: var(--color-paper-mute); border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: var(--space-4);">
+                    <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-ink-mute); margin-bottom: var(--space-1); letter-spacing: 0.05em;">PREDICTED_STAGE</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: var(--space-1);">{{ scan.ai_diagnosis }}</div>
+                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink); font-weight: 500;">SCORE: {{ scan.confidence_breakdown.score }}</div>
+                </div>
+                
+                <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute); margin-bottom: var(--space-3); letter-spacing: 0.05em;">PROBABILITY_DISTRIBUTION</div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+                    <div class="severity-row">
+                        <div class="severity-label-row">
+                            <span>No DR</span>
+                            <span style="font-family: var(--font-mono);">{{ scan.confidence_breakdown.probs.0 }}%</span>
+                        </div>
+                        <div class="severity-bar-bg">
+                            <div class="severity-bar-fill" style="width: {{ scan.confidence_breakdown.probs.0 }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="severity-row">
+                        <div class="severity-label-row">
+                            <span>Mild</span>
+                            <span style="font-family: var(--font-mono);">{{ scan.confidence_breakdown.probs.1 }}%</span>
+                        </div>
+                        <div class="severity-bar-bg">
+                            <div class="severity-bar-fill" style="width: {{ scan.confidence_breakdown.probs.1 }}%; background-color: var(--color-success);"></div>
+                        </div>
+                    </div>
+                    <div class="severity-row">
+                        <div class="severity-label-row">
+                            <span>Moderate</span>
+                            <span style="font-family: var(--font-mono);">{{ scan.confidence_breakdown.probs.2 }}%</span>
+                        </div>
+                        <div class="severity-bar-bg">
+                            <div class="severity-bar-fill" style="width: {{ scan.confidence_breakdown.probs.2 }}%; background-color: var(--color-warning);"></div>
+                        </div>
+                    </div>
+                    <div class="severity-row">
+                        <div class="severity-label-row">
+                            <span>Severe</span>
+                            <span style="font-family: var(--font-mono);">{{ scan.confidence_breakdown.probs.3 }}%</span>
+                        </div>
+                        <div class="severity-bar-bg">
+                            <div class="severity-bar-fill" style="width: {{ scan.confidence_breakdown.probs.3 }}%; background-color: #f97316;"></div>
+                        </div>
+                    </div>
+                    <div class="severity-row">
+                        <div class="severity-label-row">
+                            <span>Proliferative</span>
+                            <span style="font-family: var(--font-mono);">{{ scan.confidence_breakdown.probs.4 }}%</span>
+                        </div>
+                        <div class="severity-bar-bg">
+                            <div class="severity-bar-fill" style="width: {{ scan.confidence_breakdown.probs.4 }}%; background-color: var(--color-critical);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header-row">
+                <div class="table-title">Clinician Signature</div>
+            </div>
+            <div style="padding: var(--space-4);">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="final_diagnosis">Confirmed Diagnosis</label>
+                        <select name="final_diagnosis" id="final_diagnosis" class="form-control" required>
+                            <option value="No Diabetic Retinopathy" {% if scan.final_diagnosis == 'No Diabetic Retinopathy' or not scan.final_diagnosis and scan.ai_diagnosis == 'No Diabetic Retinopathy' %}selected{% endif %}>No Diabetic Retinopathy</option>
+                            <option value="Mild Diabetic Retinopathy" {% if scan.final_diagnosis == 'Mild Diabetic Retinopathy' or not scan.final_diagnosis and scan.ai_diagnosis == 'Mild Diabetic Retinopathy' %}selected{% endif %}>Mild Diabetic Retinopathy</option>
+                            <option value="Moderate Diabetic Retinopathy" {% if scan.final_diagnosis == 'Moderate Diabetic Retinopathy' or not scan.final_diagnosis and scan.ai_diagnosis == 'Moderate Diabetic Retinopathy' %}selected{% endif %}>Moderate Diabetic Retinopathy</option>
+                            <option value="Severe Diabetic Retinopathy" {% if scan.final_diagnosis == 'Severe Diabetic Retinopathy' or not scan.final_diagnosis and scan.ai_diagnosis == 'Severe Diabetic Retinopathy' %}selected{% endif %}>Severe Diabetic Retinopathy</option>
+                            <option value="Proliferative Diabetic Retinopathy" {% if scan.final_diagnosis == 'Proliferative Diabetic Retinopathy' or not scan.final_diagnosis and scan.ai_diagnosis == 'Proliferative Diabetic Retinopathy' %}selected{% endif %}>Proliferative Diabetic Retinopathy</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="doctor_notes">Clinical Notes</label>
+                        <textarea name="doctor_notes" id="doctor_notes" rows="4" class="form-control" style="resize: vertical; font-size: 0.85rem;" placeholder="Macular status, hemorrhage density, observations...">{% if scan.doctor_notes %}{{ scan.doctor_notes }}{% endif %}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Workflow Action</label>
+                        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-1);">
+                            <label style="display: flex; align-items: center; gap: var(--space-2); font-size: 0.85rem; cursor: pointer;">
+                                <input type="radio" name="status" value="COMPLETED" {% if scan.status == 'COMPLETED' %}checked{% endif %}>
+                                <span>Approve & Sign-off Case</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: var(--space-2); font-size: 0.85rem; cursor: pointer;">
+                                <input type="radio" name="status" value="REFERRED" {% if scan.status == 'REFERRED' or not scan.status and scan.ai_severity_index >= 3 %}checked{% endif %}>
+                                <span>Flag & Refer to Specialist</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: var(--space-2); font-size: 0.85rem; cursor: pointer;">
+                                <input type="radio" name="status" value="PENDING" {% if scan.status == 'PENDING' %}checked{% endif %}>
+                                <span>Keep Pending Review</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        Sign & Submit
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const opacitySlider = document.getElementById('opacity-slider');
+    const opacityVal = document.getElementById('opacity-val');
+    const toggleAllBtn = document.getElementById('toggle-all');
+    
+    const layers = {
+        'layer-vessels': document.getElementById('layer-vessels'),
+        'layer-hemorrhage': document.getElementById('layer-hemorrhage'),
+        'layer-hard': document.getElementById('layer-hard'),
+        'layer-micro': document.getElementById('layer-micro'),
+        'layer-optic': document.getElementById('layer-optic'),
+        'layer-soft': document.getElementById('layer-soft')
+    };
+
+    const combinedOverlay = document.getElementById('combined-overlay');
+    let showingCombined = false;
+
+    function applyInitialLayers() {
+        Object.keys(layers).forEach(id => {
+            const chk = document.querySelector(`input[data-layer="${id}"]`);
+            if (chk) {
+                const label = chk.closest('.toggle-pill');
+                if (chk.checked) {
+                    layers[id].style.opacity = opacitySlider.value / 100;
+                    if (label) label.classList.add('active');
+                } else {
+                    layers[id].style.opacity = 0;
+                    if (label) label.classList.remove('active');
+                }
+            }
+        });
+    }
+    applyInitialLayers();
+
+    opacitySlider.addEventListener('input', () => {
+        const val = opacitySlider.value;
+        opacityVal.innerText = `${val}%`;
+        const opacityFraction = val / 100;
+        
+        if (showingCombined) {
+            combinedOverlay.style.opacity = opacityFraction;
+        } else {
+            Object.keys(layers).forEach(id => {
+                const chk = document.querySelector(`input[data-layer="${id}"]`);
+                if (chk && chk.checked) {
+                    layers[id].style.opacity = opacityFraction;
+                }
+            });
+        }
+    });
+
+    Object.keys(layers).forEach(id => {
+        const chk = document.querySelector(`input[data-layer="${id}"]`);
+        if (chk) {
+            chk.addEventListener('change', () => {
+                const label = chk.closest('.toggle-pill');
+                if (showingCombined) disableCombined();
+                if (chk.checked) {
+                    layers[id].style.opacity = opacitySlider.value / 100;
+                    if (label) label.classList.add('active');
+                } else {
+                    layers[id].style.opacity = 0;
+                    if (label) label.classList.remove('active');
+                }
+            });
+        }
+    });
+
+    toggleAllBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showingCombined ? disableCombined() : enableCombined();
+    });
+
+    function enableCombined() {
+        showingCombined = true;
+        combinedOverlay.style.opacity = opacitySlider.value / 100;
+        toggleAllBtn.innerText = "Show Individual Layers";
+        Object.keys(layers).forEach(id => {
+            layers[id].style.opacity = 0;
+            const chk = document.querySelector(`input[data-layer="${id}"]`);
+            if (chk) {
+                const label = chk.closest('.toggle-pill');
+                if (label) label.classList.remove('active');
+            }
+        });
+    }
+
+    function disableCombined() {
+        showingCombined = false;
+        combinedOverlay.style.opacity = 0;
+        toggleAllBtn.innerText = "Show Combined Map";
+        Object.keys(layers).forEach(id => {
+            const chk = document.querySelector(`input[data-layer="${id}"]`);
+            const label = chk ? chk.closest('.toggle-pill') : null;
+            if (chk && chk.checked) {
+                layers[id].style.opacity = opacitySlider.value / 100;
+                if (label) label.classList.add('active');
+            } else {
+                if (label) label.classList.remove('active');
+            }
+        });
+    }
+</script>
+{% endblock %}

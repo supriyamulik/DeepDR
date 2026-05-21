@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-5);">
+    <h1>Ophthalmologist Grading Queue</h1>
+    <div class="page-subtitle">Cases awaiting clinician verification, feature inspection, and diagnostic sign-off.</div>
+</div>
+
+<div class="table-card">
+    <div class="table-header-row">
+        <div class="table-title">Pending Doctor Verification</div>
+        <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute);">
+            AWAITING_REVIEW: {{ scans|length }}
+        </div>
+    </div>
+    
+    {% if scans %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Name</th>
+                    <th>Age / Sex</th>
+                    <th>Scanning Date</th>
+                    <th>AI Classification</th>
+                    <th>Stage</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in scans %}
+                    <tr>
+                        <td style="font-family: var(--font-mono); font-weight: 500;">{{ scan.patient.patient_id }}</td>
+                        <td style="font-weight: 500;">{{ scan.patient.name }}</td>
+                        <td>{{ scan.patient.age }} / {{ scan.patient.get_gender_display|slice:":1" }}</td>
+                        <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--color-ink-mute);">{{ scan.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <span class="badge badge-stage">{{ scan.ai_diagnosis }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-pending">
+                                Awaiting Grading
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'scan_results' scan.id %}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                Open Console
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: var(--space-6) var(--space-4);">
+            <div style="font-size: 2rem; color: var(--color-success); margin-bottom: var(--space-3);">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-1);">Queue is Clear!</div>
+            <div style="color: var(--color-ink-mute); max-width: 420px; margin-inline: auto;">All uploaded scans have been confirmed and signed off by the clinical team.</div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
