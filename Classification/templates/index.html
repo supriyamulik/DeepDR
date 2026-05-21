@@ -39,6 +39,9 @@
                 <div class="diagnosis-box">
                     <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); font-weight: 700;">Detection Result</div>
                     <div id="diagnosis-val" style="font-size: 1.2rem; font-weight: 800; margin-top: 0.3rem;"></div>
+                    <div style="margin-top: 0.8rem; font-size: 0.85rem; font-weight: 600; color: var(--secondary);">
+                        Prediction Certainty: <span id="certainty-val" style="color: var(--text-dark);"></span>%
+                    </div>
                 </div>
                 
                 <div class="severity-track">
@@ -62,10 +65,99 @@
             <div id="loader" class="loader">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 1.5rem;"></i>
                 <h3>Processing Multi-Model Stack</h3>
-                <p style="color: var(--secondary);">Initializing 6 U-Net Modules and 1 CNN...</p>
+                <p style="color: var(--secondary);">Initializing 6 U-Net Modules and 1 CNN...<br>
+                <span style="font-size: 0.8rem;">Running multi-layer Grad-CAM comparison (3 layers × 3 methods)...</span></p>
             </div>
 
             <div id="results-grid" style="display: none;">
+                <!-- ============================================= -->
+                <!-- CLINICAL AI EXPLANATION (Groq API)            -->
+                <!-- ============================================= -->
+                <div id="clinical-summary-section" style="margin-bottom: 2rem; display: none;">
+                    <div style="margin-bottom: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: #6f42c1;">
+                        <i class="fa-solid fa-brain"></i> CLINICAL AI EXPLANATION
+                    </div>
+                    <div class="clinical-summary-card" id="clinical-summary-content">
+                        <!-- LLM content injected here -->
+                    </div>
+                </div>
+
+                <!-- Original Grad-CAM (backward compatible) -->
+                <div id="gradcam-section" style="margin-bottom: 2rem;">
+                    <div style="margin-bottom: 1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-eye" style="color: var(--primary);"></i> AI ATTENTION MAP (GRAD-CAM)
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 1rem;">
+                        Highlighted regions influenced the severity prediction. Uses best-performing gradient method.
+                    </div>
+                    
+                    <div class="heatmap-legend">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #0000ff;">LOW IMPACT (Ignored)</span>
+                        <div class="heatmap-colorbar"></div>
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #ff0000;">HIGH IMPACT (Focused)</span>
+                    </div>
+
+                    <div class="mask-card" style="max-width: 400px;">
+                        <img id="gradcam-img" src="" alt="Grad-CAM Overlay">
+                    </div>
+                </div>
+
+                <!-- ============================================= -->
+                <!-- GRAD-CAM RESEARCH COMPARISON PANEL (Task 2)   -->
+                <!-- ============================================= -->
+                <div id="research-panel" class="research-panel" style="display: none;">
+                    <div class="research-panel-header" onclick="toggleResearchPanel()">
+                        <div class="research-panel-title">
+                            <i class="fa-solid fa-flask"></i> Grad-CAM Layer Comparison (Research Mode)
+                        </div>
+                        <button class="research-toggle-btn" id="research-toggle-text">COLLAPSE</button>
+                    </div>
+                    <div class="research-panel-body" id="research-panel-body">
+
+                        <!-- Best recommendation banner -->
+                        <div class="best-banner" id="best-banner">
+                            <i class="fa-solid fa-award"></i>
+                            <span id="best-recommendation-text">Evaluating best layer + method combination...</span>
+                        </div>
+
+                        <!-- Layer × Method comparison grid -->
+                        <div class="layer-section">
+                            <div class="layer-section-title">
+                                <i class="fa-solid fa-layer-group"></i> Per-Layer Attention Maps
+                            </div>
+
+                            <div class="heatmap-legend" style="margin-bottom: 1rem;">
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #0000ff;">LOW IMPACT</span>
+                                <div class="heatmap-colorbar"></div>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #ff0000;">HIGH IMPACT</span>
+                            </div>
+
+                            <!-- Method tabs removed for simplicity -->
+
+                            <div class="layer-comparison-grid" id="layer-comparison-grid">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+
+                        <!-- Segmentation Cross-Validation (Task 6) -->
+                        <div class="seg-overlay-section" id="seg-overlay-section" style="display: none;">
+                            <div class="layer-section-title">
+                                <i class="fa-solid fa-microscope"></i> Grad-CAM × Segmentation Overlap
+                            </div>
+                            <div class="seg-overlay-legend">
+                                <span class="legend-item"><span class="legend-dot green"></span> Lesion (Segmentation)</span>
+                                <span class="legend-item"><span class="legend-dot red"></span> Attention (Grad-CAM)</span>
+                                <span class="legend-item"><span class="legend-dot blue"></span> Overlap Region</span>
+                            </div>
+                            <div class="seg-overlay-grid" id="seg-overlay-grid">
+                                <!-- Dynamically populated -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Segmentation Maps -->
                 <div style="margin-bottom: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> SEGMENTATION MAPS
                 </div>
@@ -83,6 +175,11 @@
         const previewImg = document.getElementById('preview-img');
         const placeholder = document.getElementById('upload-placeholder');
 
+        // Current selected method for filtering
+        let currentMethod = 'pre_activation';
+        // Store full comparison data for re-rendering
+        let comparisonData = null;
+
         dropZone.onclick = () => fileInput.click();
 
         fileInput.onchange = function() {
@@ -97,6 +194,78 @@
                 reader.readAsDataURL(this.files[0]);
             }
         };
+
+        // Toggle research panel visibility
+        function toggleResearchPanel() {
+            const body = document.getElementById('research-panel-body');
+            const btn = document.getElementById('research-toggle-text');
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                btn.textContent = 'COLLAPSE';
+            } else {
+                body.classList.add('collapsed');
+                btn.textContent = 'EXPAND';
+            }
+        }
+
+        // Method filtering removed for simplicity
+        // Render the layer comparison grid for the currently selected method
+        function renderLayerComparison(data) {
+            const grid = document.getElementById('layer-comparison-grid');
+            grid.innerHTML = '';
+
+            data.layers.forEach(layer => {
+                const methodData = layer.methods[currentMethod];
+                if (!methodData || !methodData.overlay_url) return;
+
+                const isBest = (layer.name === data.best_layer && currentMethod === data.best_method);
+                const diag = methodData.diagnostics;
+
+                let diagBadgeHtml = '';
+                let metricsHtml = '';
+
+                const card = document.createElement('div');
+                card.className = `gradcam-layer-card${isBest ? ' best-card' : ''}`;
+                card.innerHTML = `
+                    <img src="${methodData.overlay_url}" alt="Grad-CAM ${layer.name}">
+                    <div class="gradcam-card-footer">
+                        <span class="layer-badge${isBest ? ' best' : ''}">
+                            ${isBest ? '★ ' : ''}Layer: ${layer.name}
+                        </span>
+                        <span class="method-label" style="color: var(--text-dark); font-size: 0.72rem;">
+                            ${layer.label} · ${layer.type}
+                        </span>
+                        ${diagBadgeHtml}
+                        ${metricsHtml}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Render segmentation cross-validation overlays
+        function renderSegOverlays(segOverlays) {
+            const section = document.getElementById('seg-overlay-section');
+            const grid = document.getElementById('seg-overlay-grid');
+            grid.innerHTML = '';
+
+            if (!segOverlays || Object.keys(segOverlays).length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            for (const [name, url] of Object.entries(segOverlays)) {
+                grid.innerHTML += `
+                    <div class="seg-overlay-card">
+                        <img src="${url}" alt="Grad-CAM × ${name}">
+                        <div class="seg-overlay-footer">
+                            Grad-CAM × ${name} Segmentation
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
         runBtn.onclick = async () => {
             const formData = new FormData();
@@ -114,6 +283,9 @@
 
                 // Update Diagnosis & Slider
                 document.getElementById('diagnosis-val').innerText = data.diagnosis;
+                if (data.prediction_certainty !== undefined) {
+                    document.getElementById('certainty-val').innerText = data.prediction_certainty;
+                }
                 const marker = document.getElementById('marker');
                 let percent = 0;
                 if (data.diagnosis.includes('Mild')) percent = 25;
@@ -122,7 +294,53 @@
                 else if (data.diagnosis.includes('Proliferative')) percent = 100;
                 marker.style.left = `calc(${percent}% - 8px)`;
 
-                // Update Grid
+                // Update Clinical Summary
+                const summarySection = document.getElementById('clinical-summary-section');
+                const summaryContent = document.getElementById('clinical-summary-content');
+                if (data.clinical_summary) {
+                    summarySection.style.display = 'block';
+                    // Parse markdown to simple HTML (bolding and bullets)
+                    let formatted = data.clinical_summary
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n\*/g, '<br>•')
+                        .replace(/\n-/g, '<br>•')
+                        .replace(/\n/g, '<br>');
+                    summaryContent.innerHTML = formatted;
+                } else {
+                    summarySection.style.display = 'none';
+                }
+
+                // Update main Grad-CAM
+                const gradcamImg = document.getElementById('gradcam-img');
+                if (data.gradcam_overlay) {
+                    gradcamImg.src = data.gradcam_overlay;
+                    document.getElementById('gradcam-section').style.display = 'block';
+                } else {
+                    document.getElementById('gradcam-section').style.display = 'none';
+                }
+
+                // Update Research Comparison Panel
+                const researchPanel = document.getElementById('research-panel');
+                if (data.gradcam_comparison && data.gradcam_comparison.layers && data.gradcam_comparison.layers.length > 0) {
+                    comparisonData = data.gradcam_comparison;
+                    researchPanel.style.display = 'block';
+
+                    // Update best recommendation banner
+                    const bestText = document.getElementById('best-recommendation-text');
+                    bestText.textContent = `Best combination: Layer "${data.gradcam_comparison.best_layer}" + ${data.gradcam_comparison.best_method} method`;
+
+                    // Render layer cards for current method
+                    renderLayerComparison(data.gradcam_comparison);
+                } else {
+                    researchPanel.style.display = 'none';
+                }
+
+                // Update Segmentation Cross-Validation Overlays
+                if (data.gradcam_seg_overlays) {
+                    renderSegOverlays(data.gradcam_seg_overlays);
+                }
+
+                // Update Segmentation Masks Grid
                 const container = document.getElementById('mask-container');
                 container.innerHTML = '';
                 for (const [name, url] of Object.entries(data.masks)) {
