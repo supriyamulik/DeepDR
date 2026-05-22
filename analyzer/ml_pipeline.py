@@ -270,8 +270,9 @@ class ModelManager:
                         # seg_mask_urls gives relative media URLs, we need absolute paths
                         seg_paths = {}
                         for module_name, url in seg_mask_urls.items():
-                            file_name = os.path.basename(url)
-                            seg_paths[module_name] = os.path.join(overlays_dir, file_name)
+                            if url:
+                                file_name = os.path.basename(url)
+                                seg_paths[module_name] = os.path.join(overlays_dir, file_name)
                             
                         seg_overlay_results = generate_segmentation_overlays(
                             best_heatmap, seg_paths,

@@ -54,7 +54,7 @@
                     {% for layer in gradcam_comparison.layers %}
                         {% for method_name, method_data in layer.methods.items %}
                             {% if method_name == gradcam_comparison.best_method and method_data.overlay_url %}
-                            <div style="border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; {% if layer.name == gradcam_comparison.best_layer %}border-color: var(--color-accent);{% endif %}">
+                            <div {% if layer.name == gradcam_comparison.best_layer %}style="border: 1px solid var(--color-accent); border-radius: var(--radius); overflow: hidden;"{% else %}style="border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;"{% endif %}>
                                 <div style="position: relative; background: #000;">
                                     <img src="/media/{{ method_data.overlay_url }}" style="width: 100%; display: block; aspect-ratio: 1/1; object-fit: cover;" alt="Grad-CAM {{ layer.name }}">
                                     {% if layer.name == gradcam_comparison.best_layer %}
