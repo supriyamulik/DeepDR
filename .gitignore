@@ -37,3 +37,7 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
+db.sqlite3
+media/
+.env
