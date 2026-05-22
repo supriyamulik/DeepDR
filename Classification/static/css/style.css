@@ -7,6 +7,10 @@
     --text-dark: #334767;
     --border: #E0E4E8;
     --radius: 8px;
+    --research-accent: #6C5CE7;
+    --research-bg: #F8F7FF;
+    --warning-orange: #E17055;
+    --success-green: #00B894;
 }
 
 body {
@@ -161,4 +165,344 @@ body {
     border-radius: 8px;
     margin-bottom: 1rem;
     display: none;
+}
+
+/* =============================================================================
+   GRAD-CAM RESEARCH PANEL STYLES
+   ============================================================================= */
+
+.research-panel {
+    margin-bottom: 2rem;
+    border: 2px solid var(--research-accent);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-card);
+    box-shadow: 0 4px 20px rgba(108, 92, 231, 0.08);
+}
+
+.research-panel-header {
+    background: linear-gradient(135deg, var(--research-accent), #a29bfe);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s;
+}
+
+.research-panel-header:hover {
+    opacity: 0.92;
+}
+
+.research-panel-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.research-toggle-btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.research-toggle-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+.research-panel-body {
+    padding: 1.5rem;
+    background: var(--research-bg);
+    transition: max-height 0.3s ease;
+    overflow: hidden;
+}
+
+.research-panel-body.collapsed {
+    display: none;
+}
+
+/* Layer comparison section */
+.layer-section {
+    margin-bottom: 2rem;
+}
+
+.layer-section:last-child {
+    margin-bottom: 0;
+}
+
+.layer-section-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--research-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.layer-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Heatmap Color Legend */
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+    background: #f8f9fa;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    width: fit-content;
+}
+
+.heatmap-colorbar {
+    width: 150px;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(to right, #000080, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000, #800000);
+}
+
+/* Individual Grad-CAM layer card */
+.gradcam-layer-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.gradcam-layer-card:hover {
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.12);
+    transform: translateY(-2px);
+}
+
+.gradcam-layer-card.best-card {
+    border-color: var(--success-green);
+    box-shadow: 0 0 0 2px rgba(0, 184, 148, 0.2);
+}
+
+.gradcam-layer-card img {
+    width: 100%;
+    display: block;
+    background: #000;
+    aspect-ratio: 1;
+    object-fit: cover;
+}
+
+.gradcam-card-footer {
+    padding: 0.75rem 1rem;
+}
+
+/* Layer name badge */
+.layer-badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.layer-badge.best {
+    background: #d4f5e9;
+    color: #00875a;
+}
+
+/* Method label */
+.method-label {
+    font-size: 0.75rem;
+    color: var(--secondary);
+    font-weight: 600;
+    margin-top: 0.4rem;
+    display: block;
+}
+
+/* Diagnostic badge */
+.diagnostic-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+}
+
+.diagnostic-badge.warning {
+    background: #ffeaa7;
+    color: #d35400;
+}
+
+.diagnostic-badge.ok {
+    background: #d4f5e9;
+    color: #00875a;
+}
+
+/* Diagnostic metrics row */
+.diagnostic-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+/* Clinical Summary Card */
+.clinical-summary-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #6f42c1;
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #343a40;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+.clinical-summary-card strong {
+    color: #212529;
+}
+
+.metric-pill {
+    font-size: 0.65rem;
+    background: #f1f3f5;
+    color: var(--secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Method comparison row */
+.method-comparison-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border);
+}
+
+.method-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.method-tab {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.method-tab:hover {
+    border-color: var(--research-accent);
+    color: var(--research-accent);
+}
+
+.method-tab.active {
+    background: var(--research-accent);
+    color: white;
+    border-color: var(--research-accent);
+}
+
+/* Segmentation cross-validation */
+.seg-overlay-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border);
+}
+
+.seg-overlay-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.2rem;
+}
+
+.seg-overlay-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.seg-overlay-card img {
+    width: 100%;
+    display: block;
+    background: #000;
+}
+
+.seg-overlay-footer {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-dark);
+}
+
+.seg-overlay-legend {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    padding: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--secondary);
+    font-weight: 600;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot.green { background: #00B894; }
+.legend-dot.red { background: #E17055; }
+.legend-dot.blue { background: #6C5CE7; }
+
+/* Best recommendation banner */
+.best-banner {
+    background: linear-gradient(135deg, #d4f5e9, #e8f8f5);
+    border: 1px solid #00B894;
+    border-radius: 10px;
+    padding: 0.8rem 1.2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #00875a;
 }

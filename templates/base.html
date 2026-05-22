@@ -49,6 +49,13 @@
                             <i class="fa-solid fa-hospital-user"></i> Referrals Queue
                         </a>
                     </li>
+                    {% if scan %}
+                    <li class="nav-item {% if is_explainability %}active{% endif %}">
+                        <a href="{% url 'explainability' scan.id %}">
+                            <i class="fa-solid fa-brain"></i> Explainable AI
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
             </nav>
         </aside>

@@ -43,6 +43,9 @@ class ScanSession(models.Model):
     # Combined OpenCV overlay image (Feature 5 final image)
     combined_overlay = models.ImageField(upload_to='scans/overlays/', blank=True, null=True)
     
+    # Explainable AI Results Cache
+    explainability_data = models.JSONField(blank=True, null=True)
+    
     # Clinical/Doctor validation input
     doctor_notes = models.TextField(blank=True, null=True)
     final_diagnosis = models.CharField(max_length=100, blank=True, null=True)

@@ -207,3 +207,84 @@ class ModelManager:
             "masks": mask_urls,
             "combined_overlay": combined_url
         }
+
+    def run_explainability(self, original_path, output_filename, seg_mask_urls):
+        """
+        Generate Grad-CAM heatmaps and segmentation cross-validations dynamically.
+        """
+        from analyzer.gradcam import (
+            generate_multilayer_gradcam,
+            generate_gradcam_for_layer,
+            generate_segmentation_overlays
+        )
+        
+        # Ensure directories exist
+        overlays_dir = os.path.join(settings.MEDIA_ROOT, 'scans', 'overlays')
+        os.makedirs(overlays_dir, exist_ok=True)
+        
+        # Load image
+        img = cv2.imread(original_path)
+        if img is None:
+            raise ValueError(f"Could not read image for Grad-CAM: {original_path}")
+            
+        img_clf = cv2.resize(img, (64, 64))
+        img_clf = np.reshape(img_clf, [1, 64, 64, 3])
+        
+        # Generate multi-layer Grad-CAM
+        comparison = None
+        try:
+            comparison = generate_multilayer_gradcam(
+                self.clf_model, img_clf, original_path,
+                overlays_dir, output_filename,
+                threshold=0.3
+            )
+        except Exception as e:
+            print(f"[Grad-CAM WARNING] Multi-layer comparison failed: {e}")
+            import traceback
+            traceback.print_exc()
+            
+        # Convert absolute overlay paths to relative URLs based on how Django serves MEDIA
+        # Note: generate_multilayer_gradcam returns paths like 'results/filename.png',
+        # we will adjust them to 'scans/overlays/filename.png' for the media URL.
+        if comparison:
+            for layer_data in comparison['layers']:
+                for method_name, method_data in layer_data['methods'].items():
+                    if method_data.get('overlay_url'):
+                        method_data['overlay_url'] = method_data['overlay_url'].replace('results/', 'scans/overlays/')
+                    if method_data.get('heatmap_url'):
+                        method_data['heatmap_url'] = method_data['heatmap_url'].replace('results/', 'scans/overlays/')
+                        
+        # Generate Segmentation Overlays
+        gradcam_seg_overlays = {}
+        try:
+            if comparison:
+                best_layer = comparison.get('best_layer')
+                best_method = comparison.get('best_method', 'pre_activation')
+                if best_layer:
+                    best_heatmap = generate_gradcam_for_layer(
+                        self.clf_model, img_clf, best_layer,
+                        gradient_method=best_method, threshold=0.3
+                    )
+                    
+                    if best_heatmap is not None:
+                        # seg_mask_urls gives relative media URLs, we need absolute paths
+                        seg_paths = {}
+                        for module_name, url in seg_mask_urls.items():
+                            file_name = os.path.basename(url)
+                            seg_paths[module_name] = os.path.join(overlays_dir, file_name)
+                            
+                        seg_overlay_results = generate_segmentation_overlays(
+                            best_heatmap, seg_paths,
+                            overlays_dir, output_filename,
+                            original_image_path=original_path
+                        )
+                        
+                        for module_name, rel_url in seg_overlay_results.items():
+                            gradcam_seg_overlays[module_name] = rel_url.replace('results/', 'scans/overlays/')
+        except Exception as e:
+            print(f"[Grad-CAM WARNING] Segmentation cross-validation failed: {e}")
+            
+        return {
+            "gradcam_comparison": comparison,
+            "gradcam_seg_overlays": gradcam_seg_overlays
+        }

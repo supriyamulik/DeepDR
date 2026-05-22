@@ -141,6 +141,107 @@ def referrals_queue(request):
     scans = ScanSession.objects.filter(status='REFERRED').order_by('-created_at')
     return render(request, 'referrals.html', {'scans': scans, 'active_tab': 'referrals'})
 
+def explainability(request, scan_id):
+    scan = get_object_or_404(ScanSession, id=scan_id)
+    manager = get_model_manager()
+    
+    # Check if we already generated explainability data or need to generate it
+    if scan.explainability_data:
+        # Load from cache
+        gradcam_comparison = scan.explainability_data.get('gradcam_comparison')
+        gradcam_seg_overlays = scan.explainability_data.get('gradcam_seg_overlays')
+        clinical_summary = scan.explainability_data.get('clinical_summary')
+    else:
+        # Generate dynamically
+        seg_mask_urls = {
+            "blood_vessel": scan.mask_blood_vessel,
+            "hemorrhage": scan.mask_hemorrhage,
+            "hard_exudate": scan.mask_hard_exudate,
+            "microaneurysm": scan.mask_microaneurysm,
+            "optic_disc": scan.mask_optic_disc,
+            "soft_exudate": scan.mask_soft_exudate
+        }
+        
+        explainability_data = manager.run_explainability(
+            scan.original_image.path,
+            os.path.basename(scan.original_image.name),
+            seg_mask_urls
+        )
+        
+        gradcam_comparison = explainability_data['gradcam_comparison']
+        gradcam_seg_overlays = explainability_data['gradcam_seg_overlays']
+        
+        # Generate Clinical Summary via Groq
+        from dotenv import load_dotenv
+        import groq
+        
+        load_dotenv(os.path.join(settings.BASE_DIR, '.env'), override=True)
+        api_key = os.getenv("GROQ_API_KEY")
+        
+        clinical_summary = ""
+        if not api_key or api_key.strip() == "" or api_key == "your_api_key_here":
+            clinical_summary = "<p style='color: #b45309;'>⚠️ Groq API Key not configured. Add your key to the <code>.env</code> file to enable AI clinical summaries.</p>"
+        else:
+            try:
+                groq_client = groq.Groq(api_key=api_key)
+                confidence_val = scan.confidence_breakdown['probs'][scan.ai_severity_index] if scan.confidence_breakdown and 'probs' in scan.confidence_breakdown else 0
+                prompt = f"""You are a gentle, supportive clinical AI assistant working alongside an ophthalmologist. A patient has received an AI-generated retinal scan result.
+
+Diagnosis: {scan.ai_diagnosis}
+AI Confidence Score: {confidence_val}%
+
+Write a calm, medical-friendly patient explanation in exactly 3 short paragraphs. The tone should be reassuring but clinical, without sounding overly robotic, strict, or aggressive. Label each paragraph with a heading using this exact format:
+**What This Means**
+[Explain the diagnosis simply and calmly. If it's early stage, reassure them it's manageable. Do not sound alarming or definitive.]
+
+**Understanding the Confidence Score**
+[Explain the {confidence_val}% confidence score simply. Frame it as the AI's internal certainty level based on visual patterns, and remind them that AI is just a screening tool. Keep it brief.]
+
+**Important Disclaimer**
+[One brief, gentle sentence reminding them that this AI tool is meant to assist their doctor, and their ophthalmologist will review these results to provide the final medical diagnosis.]
+
+Be concise, warm, and professional. No markdown lists, no bullet points, just paragraph text under bold headings."""
+
+                completion = groq_client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=350
+                )
+                raw_summary = completion.choices[0].message.content
+                import re
+                # Convert **Heading** to styled heading divs
+                formatted = re.sub(
+                    r'\*\*(.*?)\*\*',
+                    r'<div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-ink-mute); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.25rem; margin-bottom: 0.4rem;">\1</div>',
+                    raw_summary
+                )
+                # Convert double newlines to paragraph breaks
+                formatted = re.sub(r'\n\n+', '</p><p style="margin-bottom: 0;">', formatted)
+                formatted = re.sub(r'\n', ' ', formatted)
+                clinical_summary = f'<p style="margin-bottom: 0;">{formatted}</p>'
+            except Exception as e:
+                clinical_summary = f"<p style='color: #b91c1c;'>⚠️ Failed to generate AI summary: {e}</p>"
+        
+        # Save to DB cache
+        scan.explainability_data = {
+            'gradcam_comparison': gradcam_comparison,
+            'gradcam_seg_overlays': gradcam_seg_overlays,
+            'clinical_summary': clinical_summary
+        }
+        scan.save()
+            
+    context = {
+        'scan': scan,
+        'gradcam_comparison': gradcam_comparison,
+        'gradcam_seg_overlays': gradcam_seg_overlays,
+        'clinical_summary': clinical_summary,
+        'active_tab': 'dashboard',  # Or keep dashboard active for inner views
+        'is_explainability': True
+    }
+    
+    return render(request, 'explainability.html', context)
+
 def link_callback(uri, rel):
     """
     Convert HTML URIs to absolute system paths so xhtml2pdf can access those
@@ -171,33 +272,110 @@ def generate_report_pdf(request, scan_id):
             "No microaneurysms or other lesions detected."
         ),
         'Mild Diabetic Retinopathy': (
-            "Microaneurysms only. This is the earliest stage of diabetic retinopathy, "
+            "Signs of Mild NPDR with microaneurysms only. This is the earliest stage of diabetic retinopathy, "
             "characterized by tiny balloon-like swelling in the retina's blood vessels."
         ),
         'Moderate Diabetic Retinopathy': (
-            "More than just microaneurysms but less than Severe NPDR. Features may "
-            "include dot and blot hemorrhages, hard exudates, and cotton wool spots. "
+            "Signs of Moderate NPDR with dot and blot hemorrhages, hard exudates, and/or cotton wool spots detected. "
             "The blood vessels that nourish the retina may swell and distort."
         ),
         'Severe Diabetic Retinopathy': (
-            "Severe nonproliferative diabetic retinopathy (NPDR). Characterized by any of the following: "
-            "more than 20 intraretinal hemorrhages in each of 4 quadrants, definite venous beading in 2+ quadrants, "
-            "or prominent intraretinal microvascular abnormalities (IRMA) in 1+ quadrant."
+            "Severe NPDR detected. Characterized by extensive intraretinal hemorrhages in multiple quadrants, "
+            "definite venous beading, and/or prominent intraretinal microvascular abnormalities (IRMA)."
         ),
         'Proliferative Diabetic Retinopathy': (
-            "Advanced stage with neovascularization (growth of new, fragile blood vessels) "
-            "and/or vitreous/preretinal hemorrhage. High risk for severe vision loss. "
-            "Urgent referral to a retinal specialist is highly recommended."
+            "Proliferative DR detected with neovascularization (growth of new, fragile blood vessels) "
+            "and/or vitreous/preretinal hemorrhage. High risk for severe vision loss."
+        )
+    }
+
+    dr_icd_codes = {
+        'No Diabetic Retinopathy': ('E11.319', 'Type 2 diabetes mellitus without diabetic retinopathy'),
+        'Mild Diabetic Retinopathy': ('E11.321', 'Type 2 diabetes mellitus with mild nonproliferative diabetic retinopathy without macular edema'),
+        'Moderate Diabetic Retinopathy': ('E11.331', 'Type 2 diabetes mellitus with moderate nonproliferative diabetic retinopathy with macular edema'),
+        'Severe Diabetic Retinopathy': ('E11.341', 'Type 2 diabetes mellitus with severe nonproliferative diabetic retinopathy'),
+        'Proliferative Diabetic Retinopathy': ('E11.351', 'Type 2 diabetes mellitus with proliferative diabetic retinopathy')
+    }
+
+    dr_screening_result = {
+        'No Diabetic Retinopathy': 'Negative for diabetic retinopathy.',
+        'Mild Diabetic Retinopathy': 'Positive for mild nonproliferative diabetic retinopathy.',
+        'Moderate Diabetic Retinopathy': 'Positive for vision threatening diabetic retinopathy.',
+        'Severe Diabetic Retinopathy': 'Positive for vision threatening diabetic retinopathy.',
+        'Proliferative Diabetic Retinopathy': 'Positive for vision threatening proliferative diabetic retinopathy.'
+    }
+
+    dr_recommendations = {
+        'No Diabetic Retinopathy': (
+            'Routine follow-up with an ophthalmologist is recommended within 12 months. '
+            'As per ADA recommendations, emphasize the importance of controlling blood sugar, '
+            'cholesterol and blood pressure as well as the importance of routine follow-up with '
+            'an ophthalmologist regardless of whether visual symptoms are present or absent.'
+        ),
+        'Mild Diabetic Retinopathy': (
+            'Follow-up with an ophthalmologist within 6-9 months is recommended. '
+            'As per ADA recommendations, emphasize the importance of controlling blood sugar, '
+            'cholesterol and blood pressure as well as the importance of routine follow-up with '
+            'an ophthalmologist regardless of whether visual symptoms are present or absent.'
+        ),
+        'Moderate Diabetic Retinopathy': (
+            'Referral to an ophthalmologist for evaluation of vision threatening diabetic retinopathy '
+            'is recommended within 2-4 weeks. '
+            'As per ADA recommendations, emphasize the importance of controlling blood sugar, '
+            'cholesterol and blood pressure as well as the importance of routine follow-up with '
+            'an ophthalmologist regardless of whether visual symptoms are present or absent.'
+        ),
+        'Severe Diabetic Retinopathy': (
+            'Immediate referral to a retinal specialist for evaluation of vision threatening diabetic '
+            'retinopathy is strongly recommended. '
+            'As per ADA recommendations, emphasize the importance of controlling blood sugar, '
+            'cholesterol and blood pressure as well as the importance of routine follow-up with '
+            'an ophthalmologist regardless of whether visual symptoms are present or absent.'
+        ),
+        'Proliferative Diabetic Retinopathy': (
+            'URGENT: Immediate referral to a retinal specialist for evaluation and potential intervention '
+            '(pan-retinal photocoagulation or anti-VEGF therapy) is strongly recommended. '
+            'As per ADA recommendations, emphasize the importance of controlling blood sugar, '
+            'cholesterol and blood pressure as well as the importance of routine follow-up with '
+            'an ophthalmologist regardless of whether visual symptoms are present or absent.'
         )
     }
     
     severity = scan.final_diagnosis if scan.final_diagnosis else scan.ai_diagnosis
     description = dr_descriptions.get(severity, "Diagnosis pending or unrecognized stage.")
+    icd_code, icd_desc = dr_icd_codes.get(severity, ('—', 'Unrecognized stage'))
+    screening_result = dr_screening_result.get(severity, 'Screening result pending.')
+    recommendation = dr_recommendations.get(severity, 'Follow up with your ophthalmologist.')
     
     template_path = 'report_pdf.html'
+    
+    clinical_summary = None
+    gradcam_url = None
+    if scan.explainability_data:
+        clinical_summary = scan.explainability_data.get('clinical_summary')
+        gradcam_comparison = scan.explainability_data.get('gradcam_comparison')
+        if gradcam_comparison:
+            best_layer = gradcam_comparison.get('best_layer')
+            best_method = gradcam_comparison.get('best_method')
+            for layer in gradcam_comparison.get('layers', []):
+                if layer.get('name') == best_layer:
+                    methods = layer.get('methods', {})
+                    if best_method in methods:
+                        gradcam_url = methods[best_method].get('overlay_url')
+
+    from datetime import datetime
+    now = datetime.now()
+                        
     context = {
         'scan': scan,
-        'description': description
+        'description': description,
+        'clinical_summary': clinical_summary,
+        'gradcam_url': gradcam_url,
+        'icd_code': icd_code,
+        'icd_desc': icd_desc,
+        'screening_result': screening_result,
+        'recommendation': recommendation,
+        'report_date': now.strftime('%Y-%b-%d %H:%M'),
     }
     
     response = HttpResponse(content_type='application/pdf')

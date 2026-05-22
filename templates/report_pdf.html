@@ -2,237 +2,455 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Diagnostic Report - {{ scan.patient.patient_id }}</title>
+    <title>DeepDR Screening Report - {{ scan.patient.patient_id }}</title>
     <style>
         @page {
             size: a4 portrait;
-            margin: 2.5cm;
+            margin: 1.5cm 2cm 2.5cm 2cm;
             @frame footer_frame {
                 -pdf-frame-content: footer_content;
-                left: 50pt; width: 512pt; top: 772pt; height: 20pt;
+                left: 50pt; width: 512pt; top: 770pt; height: 40pt;
             }
         }
         body {
-            font-family: "Times New Roman", Times, serif;
-            font-size: 11pt;
-            color: #000000;
-            line-height: 1.5;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 9pt;
+            color: #222222;
+            line-height: 1.4;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
+
+        /* ---- Header ---- */
+        .report-header {
+            width: 100%;
+            border-bottom: 3px solid #1a5276;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
         }
-        .hospital-name {
-            font-size: 14pt;
-            text-transform: uppercase;
+        .report-header td {
+            vertical-align: middle;
+        }
+        .brand-name {
+            font-size: 20pt;
             font-weight: bold;
+            color: #1a5276;
             letter-spacing: 1px;
         }
-        .report-title {
-            font-size: 16pt;
+        .brand-name span {
+            color: #2e86c1;
+        }
+        .report-type {
+            font-size: 10pt;
+            color: #555555;
+            text-align: right;
+        }
+        .report-type strong {
+            display: block;
+            font-size: 11pt;
+            color: #1a5276;
+        }
+
+        /* ---- Section Headers ---- */
+        .section-header {
+            background-color: #1a5276;
+            color: #ffffff;
+            font-size: 9pt;
             font-weight: bold;
-            margin-top: 5px;
-            margin-bottom: 10px;
+            padding: 4px 8px;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
         }
-        hr {
-            border: 0;
-            border-top: 1px solid #000;
-            margin: 10px 0;
-        }
-        h2 {
-            font-size: 12pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-bottom: 1px solid #000;
-            padding-bottom: 2px;
-            margin-top: 25px;
-            margin-bottom: 10px;
-        }
-        table {
+
+        /* ---- Info Grid ---- */
+        .info-grid {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 4px;
         }
-        .demo-table td {
-            padding: 3px 0;
+        .info-grid td {
+            padding: 2px 0;
+            font-size: 9pt;
+            vertical-align: top;
         }
-        .demo-label {
+        .info-label {
             font-weight: bold;
-            width: 20%;
+            color: #1a5276;
+            width: 25%;
         }
-        .demo-value {
-            width: 30%;
+        .info-value {
+            width: 25%;
+            color: #333;
         }
-        /* LaTeX style table */
-        .latex-table {
-            width: 80%;
-            margin: 0 auto;
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
+
+        /* ---- Screening Summary Box ---- */
+        .screening-box {
+            border: 1.5px solid #1a5276;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            background-color: #f8fbfe;
         }
-        .latex-table th, .latex-table td {
-            padding: 5px;
-            text-align: left;
-        }
-        .latex-table th {
-            border-bottom: 1px solid #000;
+        .screening-result {
             font-weight: bold;
-        }
-        .caption {
-            text-align: center;
             font-size: 10pt;
-            font-style: italic;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
-        .images-table {
+        .screening-details {
+            font-size: 9pt;
+            color: #333;
+        }
+
+        /* ---- Images ---- */
+        .images-row {
             width: 100%;
-            margin-top: 15px;
             text-align: center;
+            margin-top: 6px;
+            margin-bottom: 4px;
         }
-        .images-table td {
-            width: 50%;
-            vertical-align: middle;
-            padding: 10px;
+        .images-row td {
+            width: 33%;
+            vertical-align: top;
+            padding: 4px;
         }
-        .img-container {
-            border: 1px solid #000;
+        .img-frame {
+            border: 1px solid #999;
             padding: 2px;
             display: inline-block;
+            background: #000;
         }
-        img {
-            max-width: 230px;
-            max-height: 230px;
+        .img-frame img {
+            max-width: 150px;
+            max-height: 150px;
         }
-        .diagnosis-box {
-            border: 1px solid #000;
-            padding: 15px;
-            margin-top: 15px;
+        .img-caption {
+            font-size: 7.5pt;
+            color: #555;
+            margin-top: 3px;
+            text-align: center;
+        }
+        .img-note {
+            font-size: 7pt;
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            margin-top: 3px;
+        }
+
+        /* ---- ICD / Confidence Table ---- */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+            margin-bottom: 6px;
+        }
+        .data-table th {
+            background-color: #eaf2f8;
+            border-top: 2px solid #1a5276;
+            border-bottom: 1px solid #1a5276;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #1a5276;
+        }
+        .data-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #ddd;
+            font-size: 8.5pt;
+        }
+        .data-table tr:last-child td {
+            border-bottom: 2px solid #1a5276;
+        }
+        .data-table .highlight-row td {
+            background-color: #fef9e7;
+            font-weight: bold;
+        }
+
+        /* ---- Text Blocks ---- */
+        .text-block {
+            font-size: 9pt;
+            line-height: 1.5;
+            color: #333;
+            text-align: justify;
+            margin-bottom: 6px;
+        }
+
+        /* ---- Notes Box ---- */
+        .notes-box {
+            border: 1px solid #ccc;
+            padding: 8px;
+            min-height: 50px;
+            font-size: 9pt;
+            color: #444;
             background-color: #fcfcfc;
         }
-        .diagnosis-title {
-            font-size: 14pt;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-            text-transform: uppercase;
+
+        /* ---- XAI Section ---- */
+        .xai-grid {
+            width: 100%;
+            margin-top: 4px;
         }
-        .notes-area {
-            min-height: 80px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            font-style: italic;
+        .xai-grid td {
+            vertical-align: top;
+        }
+        .xai-summary-box {
+            border: 1px solid #d5dbdb;
+            padding: 8px;
+            background-color: #fafafa;
+            font-size: 8.5pt;
+            line-height: 1.5;
             color: #333;
+        }
+        .xai-summary-box strong {
+            display: block;
+            font-size: 9pt;
+            color: #1a5276;
+            border-bottom: 1px solid #d5dbdb;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
+        }
+
+        /* ---- Warning Banner ---- */
+        .warning-banner {
+            background-color: #e8740c;
+            color: #ffffff;
+            font-size: 7pt;
+            padding: 5px 8px;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+        .warning-banner strong {
+            font-size: 7.5pt;
+        }
+
+        /* ---- Footer ---- */
+        .footer-line {
+            font-size: 7pt;
+            color: #888;
+            border-top: 1px solid #ccc;
+            padding-top: 3px;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="hospital-name">DeepDR Tele-Ophthalmology System</div>
-        <hr>
-        <div class="report-title">Automated Retinal Diagnostic Report</div>
-        <div style="font-size: 10pt;">Date of Report: {{ scan.created_at|date:"Y-m-d H:i" }}</div>
-        <hr>
-    </div>
-
-    <h2>I. Patient Demographics</h2>
-    <table class="demo-table">
+    <!-- ============================================================= -->
+    <!-- HEADER                                                        -->
+    <!-- ============================================================= -->
+    <table class="report-header">
         <tr>
-            <td class="demo-label">Patient ID:</td>
-            <td class="demo-value">{{ scan.patient.patient_id }}</td>
-            <td class="demo-label">Name:</td>
-            <td class="demo-value">{{ scan.patient.name }}</td>
-        </tr>
-        <tr>
-            <td class="demo-label">Age:</td>
-            <td class="demo-value">{{ scan.patient.age }} Years</td>
-            <td class="demo-label">Gender:</td>
-            <td class="demo-value">{{ scan.patient.get_gender_display }}</td>
+            <td style="width: 60%;">
+                <div class="brand-name">Deep<span>DR</span></div>
+            </td>
+            <td style="width: 40%;">
+                <div class="report-type">
+                    <strong>Diabetic Retinopathy Screening Report</strong>
+                    AI-Assisted Clinical Analysis
+                </div>
+            </td>
         </tr>
     </table>
 
-    <h2>II. Clinical Findings</h2>
-    <div class="diagnosis-box">
-        <div class="diagnosis-title">
-            {% if scan.final_diagnosis %}{{ scan.final_diagnosis }}{% else %}{{ scan.ai_diagnosis }}{% endif %}
-        </div>
-        <p style="text-align: justify; margin: 0;">
-            <strong>Clinical Description:</strong> {{ description }}
-        </p>
-    </div>
-
-    <h2>III. Diagnostic Confidence (AI Model)</h2>
-    <div class="caption">Table 1: Deep Learning Model Probability Distribution Across DR Stages</div>
-    <table class="latex-table">
+    <!-- ============================================================= -->
+    <!-- PATIENT INFORMATION + GENERAL INFORMATION                     -->
+    <!-- ============================================================= -->
+    <table style="width: 100%;">
         <tr>
-            <th>Disease Stage</th>
-            <th>Probability Score</th>
+            <td style="width: 50%;">
+                <div class="section-header">Patient Information</div>
+            </td>
+            <td style="width: 50%;">
+                <div class="section-header">General Information</div>
+            </td>
+        </tr>
+    </table>
+    <table class="info-grid">
+        <tr>
+            <td class="info-label">Patient ID:</td>
+            <td class="info-value">{{ scan.patient.patient_id }}</td>
+            <td class="info-label">Report ID:</td>
+            <td class="info-value">RPT-{{ scan.id }}-{{ scan.patient.patient_id }}</td>
         </tr>
         <tr>
+            <td class="info-label">Patient Name:</td>
+            <td class="info-value">{{ scan.patient.name }}</td>
+            <td class="info-label">Scan Date:</td>
+            <td class="info-value">{{ scan.created_at|date:"Y-M-d H:i" }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Age:</td>
+            <td class="info-value">{{ scan.patient.age }} Years</td>
+            <td class="info-label">Report Date:</td>
+            <td class="info-value">{{ report_date }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Gender:</td>
+            <td class="info-value">{{ scan.patient.get_gender_display }}</td>
+            <td class="info-label">Status:</td>
+            <td class="info-value">{{ scan.get_status_display }}</td>
+        </tr>
+    </table>
+
+    <!-- ============================================================= -->
+    <!-- DIABETIC RETINOPATHY SCREENING SUMMARY                        -->
+    <!-- ============================================================= -->
+    <div class="section-header">Diabetic Retinopathy Screening Summary</div>
+    <div class="screening-box">
+        <div class="screening-result">
+            Screening Result: {{ screening_result }}
+        </div>
+        <div class="screening-details">
+            <strong>Details:</strong> {{ description }}
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- RETINAL IMAGERY                                               -->
+    <!-- ============================================================= -->
+    <table class="images-row">
+        <tr>
+            <td>
+                <div class="img-frame">
+                    <img src="{{ scan.original_image.url }}">
+                </div>
+                <div class="img-caption">Original Fundus Image</div>
+            </td>
+            <td>
+                {% if scan.combined_overlay %}
+                <div class="img-frame">
+                    <img src="/media/{{ scan.combined_overlay.name|default:scan.combined_overlay }}">
+                </div>
+                <div class="img-caption">AI Segmentation Overlay</div>
+                {% else %}
+                <div style="height: 150px; width: 150px; border: 1px dashed #999; display: inline-block; line-height: 150px; color: #999; font-size: 8pt;">No Overlay</div>
+                <div class="img-caption">AI Segmentation Overlay</div>
+                {% endif %}
+            </td>
+            <td>
+                {% if gradcam_url %}
+                <div class="img-frame">
+                    <img src="/media/{{ gradcam_url }}">
+                </div>
+                <div class="img-caption">Grad-CAM Attention Map</div>
+                {% else %}
+                <div style="height: 150px; width: 150px; border: 1px dashed #999; display: inline-block; line-height: 150px; color: #999; font-size: 8pt;">No XAI Data</div>
+                <div class="img-caption">Grad-CAM Attention Map</div>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    <div class="img-note">*Do not use the above thumbnail images for diagnostic purposes.</div>
+
+    <!-- ============================================================= -->
+    <!-- ICD-10 DIAGNOSIS CODES                                        -->
+    <!-- ============================================================= -->
+    <div class="section-header">ICD-10 Diagnosis Codes</div>
+    <table class="data-table">
+        <tr>
+            <th style="width: 15%;">Code</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">{{ icd_code }}</td>
+            <td>{{ icd_desc }}</td>
+        </tr>
+    </table>
+
+    <!-- ============================================================= -->
+    <!-- DIAGNOSTIC CONFIDENCE (AI MODEL)                              -->
+    <!-- ============================================================= -->
+    <div class="section-header">Diagnostic Confidence (AI Model)</div>
+    <table class="data-table">
+        <tr>
+            <th>Disease Stage</th>
+            <th style="width: 20%;">Probability</th>
+        </tr>
+        <tr {% if scan.ai_severity_index == 0 %}class="highlight-row"{% endif %}>
             <td>No Diabetic Retinopathy</td>
             <td>{{ scan.confidence_breakdown.probs.0|default:"N/A" }}%</td>
         </tr>
-        <tr>
+        <tr {% if scan.ai_severity_index == 1 %}class="highlight-row"{% endif %}>
             <td>Mild NPDR</td>
             <td>{{ scan.confidence_breakdown.probs.1|default:"N/A" }}%</td>
         </tr>
-        <tr>
+        <tr {% if scan.ai_severity_index == 2 %}class="highlight-row"{% endif %}>
             <td>Moderate NPDR</td>
             <td>{{ scan.confidence_breakdown.probs.2|default:"N/A" }}%</td>
         </tr>
-        <tr>
+        <tr {% if scan.ai_severity_index == 3 %}class="highlight-row"{% endif %}>
             <td>Severe NPDR</td>
             <td>{{ scan.confidence_breakdown.probs.3|default:"N/A" }}%</td>
         </tr>
-        <tr>
+        <tr {% if scan.ai_severity_index == 4 %}class="highlight-row"{% endif %}>
             <td>Proliferative DR</td>
             <td>{{ scan.confidence_breakdown.probs.4|default:"N/A" }}%</td>
         </tr>
     </table>
 
-    <h2>IV. Retinal Imagery & Segmentation</h2>
-    <table class="images-table">
+    <!-- ============================================================= -->
+    <!-- PLAN AND RECOMMENDATIONS                                      -->
+    <!-- ============================================================= -->
+    <div class="section-header">Plan and Recommendations</div>
+    <div class="text-block">
+        {{ recommendation }}
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- EXPLAINABLE AI (XAI) INSIGHTS                                 -->
+    <!-- ============================================================= -->
+    {% if clinical_summary %}
+    <div class="section-header">Explainable AI (XAI) Clinical Insights</div>
+    <div class="xai-summary-box">
+        <strong>AI-Generated Clinical Explanation (LLaMA 3.1 via Groq)</strong>
+        {{ clinical_summary|safe }}
+    </div>
+    {% endif %}
+
+    <!-- ============================================================= -->
+    <!-- PHYSICIAN NOTES                                               -->
+    <!-- ============================================================= -->
+    <div class="section-header">Comments</div>
+    <div class="notes-box">
+        {% if scan.doctor_notes %}
+            {{ scan.doctor_notes }}
+        {% else %}
+            N/A
+        {% endif %}
+    </div>
+
+    <div style="font-size: 8pt; color: #1a5276; font-weight: bold; margin-top: 8px;">
+        Report Date: {{ report_date }}
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- SIGNATURE AREA                                                -->
+    <!-- ============================================================= -->
+    <table style="width: 100%; margin-top: 20px;">
         <tr>
-            <td>
-                <div class="caption">Figure 1: Original Fundus Photograph</div>
-                <div class="img-container">
-                    <img src="{{ scan.original_image.url }}">
-                </div>
-            </td>
-            <td>
-                <div class="caption">Figure 2: AI Segmentation Map</div>
-                <div class="img-container">
-                    {% if scan.combined_overlay %}
-                        <img src="/media/{{ scan.combined_overlay.name|default:scan.combined_overlay }}">
-                    {% else %}
-                        <div style="height: 230px; width: 230px; display: table-cell; vertical-align: middle; border: 1px dashed #999;">No Map Available</div>
-                    {% endif %}
-                </div>
+            <td style="width: 60%;"></td>
+            <td style="width: 40%; text-align: center; border-top: 1px solid #333; padding-top: 4px; font-size: 8pt;">
+                Reviewing Clinician Signature
             </td>
         </tr>
     </table>
 
-    <h2>V. Physician Notes</h2>
-    <div class="notes-area">
-        {% if scan.doctor_notes %}
-            {{ scan.doctor_notes }}
-        {% else %}
-            No additional clinical notes were provided by the reviewing physician at the time of report generation.
-        {% endif %}
+    <!-- ============================================================= -->
+    <!-- WARNING DISCLAIMER                                            -->
+    <!-- ============================================================= -->
+    <div class="warning-banner">
+        <strong>Warning:</strong> This report is automatically generated using the DeepDR AI Screening System
+        and only provides a Diabetic Retinopathy (DR) screening assessment. This screening does not take
+        place of a regular eye examination for the purpose of assessing the presence of age-related macular
+        degeneration, glaucoma, cataract, anterior segment diseases or other possible vision threatening conditions.
+        All AI-assisted findings must be interpreted by a licensed ophthalmologist in conjunction with the
+        patient's clinical history.
     </div>
 
-    <div style="margin-top: 30px;">
-        <table style="width: 100%;">
-            <tr>
-                <td style="width: 60%;"></td>
-                <td style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">
-                    Reviewing Clinician Signature
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div id="footer_content" style="text-align: center; font-size: 9pt; border-top: 1px solid #ccc; padding-top: 5px;">
-        Page <pdf:pagenumber> of <pdf:pagecount> | DeepDR System Generated Report
+    <!-- ============================================================= -->
+    <!-- FOOTER                                                        -->
+    <!-- ============================================================= -->
+    <div id="footer_content" class="footer-line">
+        ID:{{ scan.patient.patient_id }} &nbsp;&nbsp; NAME:{{ scan.patient.name }} &nbsp;&nbsp; AGE:{{ scan.patient.age }}
+        <span style="float: right;">Page <pdf:pagenumber> of <pdf:pagecount></span>
     </div>
 
 </body>
