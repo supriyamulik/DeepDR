@@ -29,37 +29,21 @@
         <div class="table-card">
             <div class="table-header-row">
                 <div class="table-title">Grad-CAM Attention Maps</div>
-                {% if gradcam_comparison %}
-                <div style="display: flex; align-items: center; gap: var(--space-2);">
-                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute);">BEST_LAYER:</span>
-                    <span style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; color: var(--color-accent);">{{ gradcam_comparison.best_layer }}</span>
-                </div>
-                {% endif %}
             </div>
 
             <div style="padding: var(--space-4);">
                 {% if gradcam_comparison and gradcam_comparison.layers %}
 
-                <!-- Best combination badge -->
-                <div style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius); margin-bottom: var(--space-4);">
-                    <i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>
-                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: #065f46; font-weight: 600;">
-                        OPTIMAL_COMBINATION: layer="{{ gradcam_comparison.best_layer }}" + method="{{ gradcam_comparison.best_method }}"
-                    </span>
-                </div>
 
                 <!-- Layer grid (showing best method only) -->
                 <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-ink-mute); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-3);">PER_LAYER_ANALYSIS</div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 300px)); gap: var(--space-3); margin-bottom: var(--space-4);">
                     {% for layer in gradcam_comparison.layers %}
                         {% for method_name, method_data in layer.methods.items %}
                             {% if method_name == gradcam_comparison.best_method and method_data.overlay_url %}
-                            <div {% if layer.name == gradcam_comparison.best_layer %}style="border: 1px solid var(--color-accent); border-radius: var(--radius); overflow: hidden;"{% else %}style="border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;"{% endif %}>
+                            <div style="border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden;">
                                 <div style="position: relative; background: #000;">
                                     <img src="/media/{{ method_data.overlay_url }}" style="width: 100%; display: block; aspect-ratio: 1/1; object-fit: cover;" alt="Grad-CAM {{ layer.name }}">
-                                    {% if layer.name == gradcam_comparison.best_layer %}
-                                    <div style="position: absolute; top: var(--space-1); right: var(--space-1); background: var(--color-accent); color: #fff; font-family: var(--font-mono); font-size: 0.65rem; padding: 2px 5px; border-radius: var(--radius);">BEST</div>
-                                    {% endif %}
                                 </div>
                                 <div style="padding: var(--space-2) var(--space-3); border-top: 1px solid var(--color-border); background: var(--color-paper);">
                                     <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 2px;">{{ layer.name }}</div>
@@ -198,15 +182,7 @@
                             <div style="font-size: 0.8rem; color: var(--color-ink-mute); line-height: 1.5;">Low activation — background features the model largely ignored.</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-                        <div style="width: 28px; height: 28px; background-color: var(--color-paper-mute); border: 1px solid var(--color-border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="fa-solid fa-layer-group" style="font-size: 0.7rem; color: var(--color-accent);"></i>
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 2px;">BEST Layer Badge</div>
-                            <div style="font-size: 0.8rem; color: var(--color-ink-mute); line-height: 1.5;">The convolutional layer producing the highest quality, most localized attention map.</div>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

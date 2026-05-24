@@ -146,7 +146,8 @@ def explainability(request, scan_id):
     manager = get_model_manager()
     
     # Check if we already generated explainability data or need to generate it
-    if scan.explainability_data:
+    force_refresh = request.GET.get('refresh') == 'true'
+    if scan.explainability_data and not force_refresh:
         # Load from cache
         gradcam_comparison = scan.explainability_data.get('gradcam_comparison')
         gradcam_seg_overlays = scan.explainability_data.get('gradcam_seg_overlays')

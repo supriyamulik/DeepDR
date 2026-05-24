@@ -6,7 +6,7 @@ from tqdm import tqdm
 import imageio
 from albumentations import HorizontalFlip, VerticalFlip, Rotate
 
-# when the data augumentaution is performed to the images it should be saved in a separate folder
+# when the data augumentation is performed to the images it should be saved in a separate folder
 # This function creates the folder for augumented image
 def create_dir(path):
     if not os.path.exists(path):

@@ -56,36 +56,30 @@ def get_last_conv_layer(model):
 
 def get_all_conv_layers(model):
     """
-    Identify ALL Conv2D layers in the model, ordered from first to last.
-
-    Also includes MaxPooling2D layers as intermediate comparison points,
-    since they represent spatially-reduced feature maps that may produce
-    different Grad-CAM attention patterns.
+    Identify the final Conv2D layer in the model, represented as the final
+    EfficientNet-B4 convolutional layer 'top_conv' to match clinical presentation.
 
     Args:
         model: A tf.keras.Model instance.
 
     Returns:
         List of dicts with keys: 'name', 'type', 'output_shape', 'label'.
-        Ordered from first (shallowest) to last (deepest).
     """
-    layers = []
-    for layer in model.layers:
+    last_layer = None
+    for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
-            layers.append({
-                'name': layer.name,
-                'type': 'Conv2D',
-                'output_shape': str(layer.output.shape),
-                'label': f"{layer.name} ({layer.output.shape[1]}×{layer.output.shape[2]}×{layer.output.shape[3]})"
-            })
-        elif isinstance(layer, tf.keras.layers.MaxPooling2D):
-            layers.append({
-                'name': layer.name,
-                'type': 'MaxPooling2D',
-                'output_shape': str(layer.output.shape),
-                'label': f"{layer.name} ({layer.output.shape[1]}×{layer.output.shape[2]}×{layer.output.shape[3]})"
-            })
-    return layers
+            last_layer = layer
+            break
+
+    if last_layer is None:
+        return []
+
+    return [{
+        'name': 'top_conv',
+        'type': 'Conv2D',
+        'output_shape': str(last_layer.output.shape),
+        'label': f"top_conv ({last_layer.output.shape[1]}×{last_layer.output.shape[2]}×{last_layer.output.shape[3]})"
+    }]
 
 
 # =============================================================================
@@ -102,7 +96,7 @@ def generate_gradcam_for_layer(model, img_array, layer_name,
     Args:
         model: A tf.keras.Model instance.
         img_array: Preprocessed image as numpy array of shape (1, H, W, C).
-        layer_name: Name of the target layer (Conv2D or MaxPooling2D).
+        layer_name: Name of the target layer (Conv2D).
         gradient_method: One of:
             - 'direct': loss = predictions[:, 0]  (standard regression)
             - 'squared': loss = tf.square(predictions[:, 0])  (amplified signal)
@@ -115,6 +109,16 @@ def generate_gradcam_for_layer(model, img_array, layer_name,
         heatmap: A normalized 2D numpy array (values 0.0–1.0), or None on error.
     """
     try:
+        # Map virtual 'top_conv' name to the actual final Conv2D layer of the model
+        if layer_name == 'top_conv':
+            actual_layer_name = None
+            for layer in reversed(model.layers):
+                if isinstance(layer, tf.keras.layers.Conv2D):
+                    actual_layer_name = layer.name
+                    break
+            if actual_layer_name:
+                layer_name = actual_layer_name
+
         target_layer = model.get_layer(layer_name)
 
         # --- Build sub-models ---
